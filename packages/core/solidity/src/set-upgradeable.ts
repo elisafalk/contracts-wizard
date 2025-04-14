@@ -24,13 +24,27 @@ export function setUpgradeable(c: ContractBuilder, upgradeable: Upgradeable, acc
       break;
 
     case 'uups': {
-      requireAccessControl(c, functions._authorizeUpgrade, access, 'UPGRADER', 'upgrader');
       const UUPSUpgradeable = {
         name: 'UUPSUpgradeable',
         path: '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol',
       };
       c.addParent(UUPSUpgradeable);
       c.addOverride(UUPSUpgradeable, functions._authorizeUpgrade);
+      
+      // Check if the contract is a Governor contract
+      const isGovernor = c.parents.some(p => 
+        p.contract.name === 'Governor' || 
+        p.contract.name === 'GovernorUpgradeable'
+      );
+      
+      if (isGovernor) {
+        // Use onlyGovernance for Governor contracts
+        c.addModifier('onlyGovernance', functions._authorizeUpgrade);
+      } else {
+        // Use the standard access control for other contracts
+        requireAccessControl(c, functions._authorizeUpgrade, access, 'UPGRADER', 'upgrader');
+      }
+      
       c.setFunctionBody([], functions._authorizeUpgrade);
       break;
     }
